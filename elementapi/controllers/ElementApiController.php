@@ -40,7 +40,6 @@ class ElementApiController extends BaseController
 		$config = array_merge(
 			[
 				'cache' => craft()->config->get('enableTemplateCaching'),
-				'cacheTime' => craft()->config->get('cacheDuration'),
 				'paginate' => true,
 				'pageParam' => 'page',
 				'elementsPerPage' => 100,
@@ -51,15 +50,15 @@ class ElementApiController extends BaseController
 			$config
 		);
 
-		// Find out if a page param is set and cache the specific page
+		// // Find out if a page param is set and cache the specific page
 		$pageParam = craft()->request->getQuery($config['pageParam']);
 		$template = (isset($params['template']) ? $params['template'].'?'.$config['pageParam'].'='.$pageParam : null);
 
 		// If Cache is set and a cache file is found, bail.
-		if ($config['cache'] && craft()->cache->get($template))
+		if ($config['cache'] && $cache = craft()->templateCache->getTemplateCache($template, false))
 		{
 			JsonHelper::sendJsonHeaders();
-			echo craft()->cache->get($template);
+			echo $cache;
 			craft()->end();
 		}
 
@@ -142,13 +141,14 @@ class ElementApiController extends BaseController
 
 		$JsonValue = $data->toJson();
 
-		echo $JsonValue;
-
-		// Cache the response
-		if($config['cache'])
+		if ($config['cache'])
 		{
-			craft()->cache->set($template, $JsonValue, $config['cacheTime']);
+			craft()->templateCache->startTemplateCache($template);
+			craft()->templateCache->includeCriteriaInTemplateCaches($criteria);
+			craft()->templateCache->endTemplateCache($template, false, null, null, $JsonValue);
 		}
+
+		echo $JsonValue;
 
 		// End the request
 		craft()->end();
